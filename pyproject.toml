@@ -22,4 +22,4 @@ target-version = "py312"
 line-length = 100
 
 [tool.setuptools.package-data]
-app = ["templates/*.html"]
+app = ["templates/*.html", "static/*.css"]
