@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Tempo API documentation</title>
+</head>
+
+<body>
+    <h1>GitHub Insights API</h1>
+    <p><a href="{{ url_for('dashboard') }}">Dashboard</a></p>
+    <h2>Query parameters</h2>
+    <p>Both API endpoints require <code>repo=owner/name</code>, <code>start=YYYY-MM-DD</code>, and
+        <code>end=YYYY-MM-DD</code>. Dates are UTC, start inclusive and end exclusive, spanning 1–90 days. End must be
+        today or earlier.</p>
+    <h2>GET /api/metrics</h2>
+    <p>Returns repository, date period, fetched_at, aggregate facts, ranked closers and source issues. Counts currently
+        closed issues, excluding PRs, by closing actor (not author).</p>
+    <h2>POST /api/insights</h2>
+    <p>Uses the same query parameters, not a JSON body. Returns narrative, tentative hypothesis, subjective confidence,
+        validated numeric evidence, model name and underlying metrics. Prose remains unverified.</p>
+    <h2>GET /health</h2>
+    <p>Checks SQLite availability. Upstreams are checked on use.</p>
+    <h2>Errors</h2>
+    <p>JSON <code>{"detail": "message"}</code>: 422 for invalid input or oversized scans, 404 for missing resources, 502
+        for rejected upstream responses or invalid model output, 503 for unavailable or rate-limited upstreams. Rate
+        restrictions include Retry-After.</p>
+    <p>Metrics and insights are persistently cached for 900 seconds by default.</p>
+</body>
+
+</html>

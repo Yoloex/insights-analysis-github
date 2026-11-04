@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>Tempo · GitHub Insights</title>
+<style>
+    body {
+        font: 16px system-ui;
+        background: #101725;
+        color: #e9efff;
+        max-width: 1000px;
+        margin: 50px auto;
+        padding: 20px
+    }
+
+    h1 {
+        font-size: 36px
+    }
+
+    label {
+        display: inline-grid;
+        gap: 8px;
+        margin: 10px
+    }
+
+    input,
+    button {
+        font: inherit;
+        padding: 12px;
+        border: 1px solid #536582;
+        border-radius: 8px;
+        background: #18253b;
+        color: inherit
+    }
+
+    button {
+        cursor: pointer;
+        background: #304fbc
+    }
+
+    pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        background: #18253b;
+        padding: 24px;
+        border-radius: 12px
+    }
+
+    small {
+        color: #b1bed8
+    }
+
+    a {
+        color: #a9c0ff
+    }
+
+    button:disabled {
+        opacity: .5
+    }
+</style>
+<h1>GitHub collaboration insights</h1>
+<p>Who closes issues — and what might the pattern mean?</p>
+<small>UTC dates · end exclusive · 90 days maximum · not a productivity score</small>
+<form id="form"><label>Public repository<input id="repo" value="pallets/flask" required></label>
+    <label>Start<input id="start" type="date" required></label>
+    <label>End (exclusive)<input id="end" type="date" required></label>
+    <button id="metrics" type="submit">Fetch metrics</button>
+    <button id="insight" type="button">Explain with Qwen</button>
+</form>
+<p id="status" role="status">Ready. <a href="{{ url_for('docs') }}">API documentation</a></p>
+<pre id="output">Choose a repository and period to begin.</pre>
+<script>
+    const $ = id => document.getElementById(id);
+    const end = new Date(); $('end').value = end.toISOString().slice(0, 10);
+    end.setUTCDate(end.getUTCDate() - 14); $('start').value = end.toISOString().slice(0, 10);
+    async function run(insight) {
+        $('metrics').disabled = $('insight').disabled = true;
+        $('status').textContent = insight ? 'Analyzing locally with Qwen… this may take a few minutes.' : 'Fetching GitHub issues…';
+        try {
+            const q = new URLSearchParams({ repo: $('repo').value, start: $('start').value, end: $('end').value });
+            const response = await fetch((insight ? '/api/insights?' : '/api/metrics?') + q, { method: insight ? 'POST' : 'GET' });
+            const data = await response.json(); if (!response.ok) throw new Error(JSON.stringify(data.detail));
+            $('output').textContent = JSON.stringify(data, null, 2); $('status').textContent = 'Done. Results cached in SQLite.';
+        } catch (e) { $('status').textContent = 'Request failed: ' + e.message }
+        finally { $('metrics').disabled = $('insight').disabled = false }
+    }
+    $('form').onsubmit = e => { e.preventDefault(); run(false) };
+    $('insight').onclick = () => { if ($('form').reportValidity()) run(true) };
+</script>
+
+</html>
