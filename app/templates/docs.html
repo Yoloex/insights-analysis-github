@@ -10,8 +10,19 @@
 <body>
     <h1>GitHub Insights API</h1>
     <p><a href="{{ url_for('dashboard') }}">Dashboard</a></p>
+    <h2>POST /api/chat</h2>
+    <p>Send JSON <code>{"message":"How many PRs were merged in pallets/flask last 30 days?", "history":[]}</code>.
+        Responses include a reply, selected repository and period, and the tools and underlying data. The agent may ask
+        for a repository or a more specific question. History is optional, limited to 12 user/assistant messages; it is
+        supplied by the client, not stored. Only previous user messages are used to recover repository and date context;
+        repeat the metric in follow-up questions. Period defaults to the last 30 completed UTC days. Specify two ISO dates
+        or say "last N days" to override it. Model prose is not guaranteed to be accurate.</p>
+    <h2>GET /api/tools/&lt;name&gt;</h2>
+    <p>Direct access to each agent capability: issue_closures, pull_request_activity, review_activity,
+        review_turnaround, merge_cycle_time, contributor_activity, activity_trends, labels_and_themes,
+        work_distribution, release_activity and repository_context. Each uses the query parameters below.</p>
     <h2>Query parameters</h2>
-    <p>Both API endpoints require <code>repo=owner/name</code>, <code>start=YYYY-MM-DD</code>, and
+    <p>The metrics, insights, and tool endpoints require <code>repo=owner/name</code>, <code>start=YYYY-MM-DD</code>, and
         <code>end=YYYY-MM-DD</code>. Dates are UTC, start inclusive and end exclusive, spanning 1–90 days. End must be
         today or earlier.</p>
     <h2>GET /api/metrics</h2>

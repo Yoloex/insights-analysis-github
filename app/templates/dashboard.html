@@ -1,91 +1,175 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width">
-<title>Tempo · GitHub Insights</title>
-<style>
-    body {
-        font: 16px system-ui;
-        background: #101725;
-        color: #e9efff;
-        max-width: 1000px;
-        margin: 50px auto;
-        padding: 20px
-    }
 
-    h1 {
-        font-size: 36px
-    }
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
 
-    label {
-        display: inline-grid;
-        gap: 8px;
-        margin: 10px
-    }
+<body>
+    <div class="shell">
+        <header class="topbar">
+            <div class="brand"><span class="brand-mark" aria-hidden="true">✦</span><span>Tempo <span
+                        aria-hidden="true">/</span> GitHub insights</span></div>
+            <a href="{{ url_for('docs') }}">API docs <span aria-hidden="true">↗</span></a>
+        </header>
+        <main>
+            <section class="intro" aria-labelledby="page-title">
+                <div class="eyebrow">Your GitHub agent</div>
+                <h1>Understand the work behind the code.</h1>
+                <p>Ask about collaboration and issue activity in a public GitHub repository. Include an
+                    <strong>owner/repo</strong> and a time period to get started.</p>
+            </section>
+            <section class="chat" aria-label="GitHub agent chat">
+                <div class="chat-header"><strong>Conversation</strong><span>Public repositories only</span></div>
+                <div class="messages" id="messages" role="log" aria-label="Conversation messages" aria-live="polite"
+                    aria-relevant="additions">
+                    <div class="message assistant">
+                        <div class="avatar" aria-hidden="true">✦</div>
+                        <div class="message-body"><span class="message-label">GitHub agent</span>
+                            <div class="bubble">Hi! Ask me about a public repository and its issue activity. I can help
+                                explore the patterns and show the evidence behind the answer.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="suggestions" id="suggestions">
+                    <p>Try asking</p>
+                    <div class="chips">
+                        <button class="chip" type="button">Who closed issues in pallets/flask over the last 30
+                            days?</button>
+                        <button class="chip" type="button">Summarize issue activity in fastapi/fastapi over the last 14
+                            days.</button>
+                    </div>
+                </div>
+                <form class="composer" id="chat-form">
+                    <label for="message">Message the agent</label>
+                    <div class="input-row">
+                        <textarea id="message" name="message" rows="1" placeholder="Ask about owner/repo…" required
+                            aria-describedby="composer-help"></textarea>
+                        <button class="send" id="send" type="submit">Send <span aria-hidden="true">↑</span></button>
+                    </div>
+                    <div class="composer-footer">
+                        <p id="status" role="status" aria-live="polite">Ready to help.</p><span id="composer-help">Enter
+                            to send · Shift + Enter for a new line</span>
+                    </div>
+                </form>
+            </section>
+        </main>
+        <footer class="footer">AI answers may misstate numbers or causality. Verify tool data and source links; these metrics are not a productivity score.</footer>
+    </div>
+    <script>
+        (() => {
+            const form = document.getElementById('chat-form');
+            const input = document.getElementById('message');
+            const send = document.getElementById('send');
+            const status = document.getElementById('status');
+            const messages = document.getElementById('messages');
+            const suggestions = document.getElementById('suggestions');
+            let history = [];
+            let pending = false;
 
-    input,
-    button {
-        font: inherit;
-        padding: 12px;
-        border: 1px solid #536582;
-        border-radius: 8px;
-        background: #18253b;
-        color: inherit
-    }
+            function addMessage(role, content, result) {
+                const message = document.createElement('div');
+                message.className = 'message ' + role;
+                if (role === 'assistant') {
+                    const avatar = document.createElement('div');
+                    avatar.className = 'avatar';
+                    avatar.setAttribute('aria-hidden', 'true');
+                    avatar.textContent = '✦';
+                    message.appendChild(avatar);
+                }
+                const body = document.createElement('div');
+                body.className = 'message-body';
+                const label = document.createElement('span');
+                label.className = 'message-label';
+                label.textContent = role === 'user' ? 'You' : 'GitHub agent';
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.textContent = content;
+                body.append(label, bubble);
+                if (result) {
+                    const context = [];
+                    if (result.repo) context.push('Repository: ' + result.repo);
+                    if (result.start && result.end) context.push('Period: ' + result.start + ' to ' + result.end + ' (end exclusive, UTC)');
+                    else if (result.start) context.push('Start: ' + result.start + ' (UTC)');
+                    else if (result.end) context.push('End: ' + result.end + ' (exclusive, UTC)');
+                    if (context.length) {
+                        const metadata = document.createElement('p');
+                        metadata.className = 'metadata';
+                        metadata.textContent = context.join(' · ');
+                        body.appendChild(metadata);
+                    }
+                    if (Array.isArray(result.tools) && result.tools.length) {
+                        const details = document.createElement('details');
+                        const summary = document.createElement('summary');
+                        summary.textContent = 'Tool data & evidence (' + result.tools.length + ')';
+                        details.appendChild(summary);
+                        for (const item of result.tools) {
+                            const tool = document.createElement('div');
+                            tool.className = 'tool';
+                            const name = document.createElement('p');
+                            name.className = 'tool-name';
+                            name.textContent = item.name;
+                            const data = document.createElement('pre');
+                            data.textContent = JSON.stringify(item.data, null, 2);
+                            tool.append(name, data);
+                            details.appendChild(tool);
+                        }
+                        body.appendChild(details);
+                    }
+                }
+                message.appendChild(body);
+                messages.appendChild(message);
+            }
 
-    button {
-        cursor: pointer;
-        background: #304fbc
-    }
-
-    pre {
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        background: #18253b;
-        padding: 24px;
-        border-radius: 12px
-    }
-
-    small {
-        color: #b1bed8
-    }
-
-    a {
-        color: #a9c0ff
-    }
-
-    button:disabled {
-        opacity: .5
-    }
-</style>
-<h1>GitHub collaboration insights</h1>
-<p>Who closes issues — and what might the pattern mean?</p>
-<small>UTC dates · end exclusive · 90 days maximum · not a productivity score</small>
-<form id="form"><label>Public repository<input id="repo" value="pallets/flask" required></label>
-    <label>Start<input id="start" type="date" required></label>
-    <label>End (exclusive)<input id="end" type="date" required></label>
-    <button id="metrics" type="submit">Fetch metrics</button>
-    <button id="insight" type="button">Explain with Qwen</button>
-</form>
-<p id="status" role="status">Ready. <a href="{{ url_for('docs') }}">API documentation</a></p>
-<pre id="output">Choose a repository and period to begin.</pre>
-<script>
-    const $ = id => document.getElementById(id);
-    const end = new Date(); $('end').value = end.toISOString().slice(0, 10);
-    end.setUTCDate(end.getUTCDate() - 14); $('start').value = end.toISOString().slice(0, 10);
-    async function run(insight) {
-        $('metrics').disabled = $('insight').disabled = true;
-        $('status').textContent = insight ? 'Analyzing locally with Qwen… this may take a few minutes.' : 'Fetching GitHub issues…';
-        try {
-            const q = new URLSearchParams({ repo: $('repo').value, start: $('start').value, end: $('end').value });
-            const response = await fetch((insight ? '/api/insights?' : '/api/metrics?') + q, { method: insight ? 'POST' : 'GET' });
-            const data = await response.json(); if (!response.ok) throw new Error(JSON.stringify(data.detail));
-            $('output').textContent = JSON.stringify(data, null, 2); $('status').textContent = 'Done. Results cached in SQLite.';
-        } catch (e) { $('status').textContent = 'Request failed: ' + e.message }
-        finally { $('metrics').disabled = $('insight').disabled = false }
-    }
-    $('form').onsubmit = e => { e.preventDefault(); run(false) };
-    $('insight').onclick = () => { if ($('form').reportValidity()) run(true) };
-</script>
+            suggestions.addEventListener('click', event => {
+                const button = event.target.closest('button');
+                if (!button || pending) return;
+                input.value = button.textContent.trim();
+                input.focus();
+            });
+            input.addEventListener('keydown', event => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+                    event.preventDefault();
+                    if (!pending) form.requestSubmit();
+                }
+            });
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                const text = input.value.trim();
+                if (!text || pending) return;
+                pending = true;
+                send.disabled = true;
+                suggestions.querySelectorAll('button').forEach(button => { button.disabled = true; });
+                input.value = '';
+                addMessage('user', text);
+                status.textContent = 'Thinking… this may take a moment.';
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: text, history: history.slice(-12) })
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'The request could not be completed.');
+                    if (typeof result.reply !== 'string') throw new Error('The server returned an invalid response.');
+                    addMessage('assistant', result.reply, result);
+                    history = history.concat([{ role: 'user', content: text }, { role: 'assistant', content: result.reply }]).slice(-12);
+                    status.textContent = 'Response received.';
+                } catch (error) {
+                    status.textContent = 'Request failed: ' + (error.message || 'Please try again.');
+                    if (!input.value) input.value = text;
+                } finally {
+                    pending = false;
+                    send.disabled = false;
+                    suggestions.querySelectorAll('button').forEach(button => { button.disabled = false; });
+                }
+            });
+        })();
+    </script>
+</body>
 
 </html>
