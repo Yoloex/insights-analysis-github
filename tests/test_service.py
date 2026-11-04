@@ -99,6 +99,12 @@ def test_http_validation_and_dashboard(tmp_path, monkeypatch):
         assert dashboard.status_code == 200
         assert b"Tempo" in dashboard.data
         assert b"{{" not in dashboard.data
+        assert b'<link rel="stylesheet" href="/static/dashboard.css">' in dashboard.data
+        assert b"<style>" not in dashboard.data
+        stylesheet = client.get("/static/dashboard.css")
+        assert stylesheet.status_code == 200
+        assert stylesheet.mimetype == "text/css"
+        assert b".chat-header" in stylesheet.data
         assert client.get("/docs").status_code == 200
         assert client.get("/api/metrics").status_code == 422
         assert client.get("/missing").get_json()["detail"]
